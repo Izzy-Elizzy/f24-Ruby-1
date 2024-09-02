@@ -1,5 +1,3 @@
-# f24-Ruby-1
-
 Team Ruby - Fall 2024
 
 # Members
