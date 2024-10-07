@@ -1,43 +1,216 @@
+"""
+Audio Processing Pipeline
+========================
+
+This module implements a pipeline for batch processing audio files with customizable
+transformations. It follows a three-stage architecture: input, processing, and output.
+
+The script is designed to handle large numbers of audio files while maintaining a clear
+separation of concerns between loading, transforming, and saving audio data.
+
+Dependencies:
+    - librosa: For audio processing and analysis
+    - soundfile: For reading and writing audio files
+    - os: For file system operations
+
+Author: Team Ruby
+Date: 2024-10-07
+"""
+
 import os
+import logging
+from typing import Tuple, Optional
+from pathlib import Path
+
 import librosa
 import soundfile as sf
+import numpy as np
 
-# Define the path to the folder containing your audio files
-base_dir = '/Users/dowell/Desktop/VocalShield Prototype/dev-clean/'
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Define the path to the output folder where processed files will be saved
-output_dir = '/Users/dowell/Desktop/VocalShield Prototype/processed_audio/'
+class AudioProcessingError(Exception):
+    """Custom exception for audio processing errors."""
+    pass
 
-# Ensure the output directory exists
-os.makedirs(output_dir, exist_ok=True)
+class AudioFileHandler:
+    """
+    Handles all file system operations related to audio processing.
+    
+    Attributes:
+        input_dir (Path): Base directory containing input audio files
+        output_dir (Path): Directory where processed files will be saved
+        input_format (str): Expected format of input files (e.g., 'flac')
+        output_format (str): Desired format for output files (e.g., 'wav')
+    """
+    
+    def __init__(
+        self, 
+        input_dir: str, 
+        output_dir: str, 
+        input_format: str = 'flac',
+        output_format: str = 'wav'
+    ):
+        """
+        Initialize the AudioFileHandler with input and output directories.
+        
+        Args:
+            input_dir: Path to the input directory
+            output_dir: Path to the output directory
+            input_format: Extension of input files (default: 'flac')
+            output_format: Extension for output files (default: 'wav')
+        """
+        self.input_dir = Path(input_dir)
+        self.output_dir = Path(output_dir)
+        self.input_format = input_format
+        self.output_format = output_format
+        
+        # Ensure output directory exists
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    def get_input_files(self) -> list[Path]:
+        """
+        Recursively find all audio files in the input directory.
+        
+        Returns:
+            List of Path objects for all matching audio files
+        """
+        return list(self.input_dir.rglob(f"*.{self.input_format}"))
+    
+    def get_output_path(self, input_path: Path) -> Path:
+        """
+        Generate the output path for a processed file.
+        
+        Args:
+            input_path: Path to the input file
+            
+        Returns:
+            Path object for the output file location
+        """
+        relative_path = input_path.relative_to(self.input_dir)
+        output_path = self.output_dir / relative_path
+        output_path = output_path.with_suffix(f'.{self.output_format}')
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        return output_path
 
-# Function to process each audio file
-def process_audio(file_path):
-    try:
-        # Load the audio file
-        print(f"Loading file: {file_path}")  # Debugging line
-        y, sr = librosa.load(file_path, sr=None)
+class AudioLoader:
+    """Handles loading audio files and associated operations."""
+    
+    @staticmethod
+    def load_audio(file_path: Path) -> Tuple[np.ndarray, int]:
+        """
+        Load an audio file using librosa.
+        
+        Args:
+            file_path: Path to the audio file
+            
+        Returns:
+            Tuple of (audio_data, sample_rate)
+            
+        Raises:
+            AudioProcessingError: If file cannot be loaded
+        """
+        try:
+            logger.info(f"Loading audio file: {file_path}")
+            audio_data, sample_rate = librosa.load(file_path, sr=None)
+            return audio_data, sample_rate
+        except Exception as e:
+            raise AudioProcessingError(f"Failed to load {file_path}: {str(e)}")
 
-        # Apply some distortion, e.g., pitch shifting
-        y_shifted = librosa.effects.pitch_shift(y, sr=sr, n_steps=3)  # Corrected line
+class AudioProcessor:
+    """Implements audio processing transformations."""
+    
+    @staticmethod
+    def process_audio(
+        audio_data: np.ndarray,
+        sample_rate: int,
+        pitch_steps: int = 3
+    ) -> np.ndarray:
+        """
+        Apply audio processing transformations.
+        
+        Args:
+            audio_data: NumPy array of audio samples
+            sample_rate: Sample rate of the audio
+            pitch_steps: Number of steps for pitch shifting (default: 3)
+            
+        Returns:
+            Processed audio data as NumPy array
+            
+        Raises:
+            AudioProcessingError: If processing fails
+        """
+        try:
+            logger.info("Applying audio transformations")
+            return librosa.effects.pitch_shift(
+                audio_data,
+                sr=sample_rate,
+                n_steps=pitch_steps
+            )
+        except Exception as e:
+            raise AudioProcessingError(f"Processing failed: {str(e)}")
 
-        # Create the output file path in the output folder
-        relative_path = os.path.relpath(file_path, base_dir)
-        output_file = os.path.join(output_dir, relative_path.replace('.flac', '_processed.wav'))
+class AudioSaver:
+    """Handles saving processed audio files."""
+    
+    @staticmethod
+    def save_audio(
+        audio_data: np.ndarray,
+        sample_rate: int,
+        output_path: Path
+    ) -> None:
+        """
+        Save processed audio to file.
+        
+        Args:
+            audio_data: Processed audio samples
+            sample_rate: Sample rate of the audio
+            output_path: Where to save the file
+            
+        Raises:
+            AudioProcessingError: If saving fails
+        """
+        try:
+            logger.info(f"Saving processed audio to: {output_path}")
+            sf.write(output_path, audio_data, sample_rate)
+        except Exception as e:
+            raise AudioProcessingError(f"Failed to save {output_path}: {str(e)}")
 
-        # Ensure the subdirectory exists in the output folder
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+def main():
+    """Main execution function that ties together the processing pipeline."""
+    
+    # Initialize components
+    file_handler = AudioFileHandler(
+        input_dir='./dev-clean/',
+        output_dir='./processed_audio/'
+    )
+    
+    # Process each file
+    for input_path in file_handler.get_input_files():
+        try:
+            # Input
+            audio_data, sample_rate = AudioLoader.load_audio(input_path)
+            
+            # Process
+            processed_audio = AudioProcessor.process_audio(
+                audio_data,
+                sample_rate
+            )
+            
+            # Output
+            output_path = file_handler.get_output_path(input_path)
+            AudioSaver.save_audio(processed_audio, sample_rate, output_path)
+            
+            logger.info(f"Successfully processed: {input_path}")
+            
+        except AudioProcessingError as e:
+            logger.error(f"Error processing {input_path}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Unexpected error with {input_path}: {str(e)}")
 
-        # Save the processed audio file
-        sf.write(output_file, y_shifted, sr)
-        print(f"Processed {file_path} and saved as {output_file}")
-    except Exception as e:
-        print(f"Error processing {file_path}: {e}")
-
-# Walk through the folders and process each file
-for root, dirs, files in os.walk(base_dir):
-    for file in files:
-        if file.endswith('.flac'):  # Process only .flac files
-            file_path = os.path.join(root, file)
-            print(f"Processing file: {file_path}")  # Debugging line
-            process_audio(file_path)
+if __name__ == "__main__":
+    main()
