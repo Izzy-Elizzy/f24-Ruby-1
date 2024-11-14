@@ -19,7 +19,7 @@ Date: 2024-10-07
 
 import os
 import logging
-from typing import Tuple, Optional
+from typing import Tuple
 from pathlib import Path
 
 import librosa
@@ -128,7 +128,9 @@ class AudioProcessor:
     def process_audio(
         audio_data: np.ndarray,
         sample_rate: int,
-        pitch_steps: int = 3
+        pitch_steps: float = 0.1,  # Subtle pitch adjustment for realism
+        noise_level: float = 0.0005,  # Small amount of noise
+        stretch_rate: float = 1.01  # Slight time stretching
     ) -> np.ndarray:
         """
         Apply audio processing transformations.
@@ -136,7 +138,9 @@ class AudioProcessor:
         Args:
             audio_data: NumPy array of audio samples
             sample_rate: Sample rate of the audio
-            pitch_steps: Number of steps for pitch shifting (default: 3)
+            pitch_steps: Number of steps for pitch shifting (default: 0.3)
+            noise_level: Amplitude of added noise (default: 0.001)
+            stretch_rate: Rate for time-stretching (default: 1.02)
             
         Returns:
             Processed audio data as NumPy array
@@ -146,11 +150,23 @@ class AudioProcessor:
         """
         try:
             logger.info("Applying audio transformations")
-            return librosa.effects.pitch_shift(
+            
+            # Apply pitch shifting
+            processed_audio = librosa.effects.pitch_shift(
                 audio_data,
                 sr=sample_rate,
                 n_steps=pitch_steps
             )
+            
+            # Apply time stretching
+            processed_audio = librosa.effects.time_stretch(processed_audio, rate=stretch_rate)
+            
+            # Add subtle noise
+            noise = np.random.normal(0, noise_level, len(processed_audio))
+            processed_audio += noise
+
+            return processed_audio
+        
         except Exception as e:
             raise AudioProcessingError(f"Processing failed: {str(e)}")
 
@@ -198,7 +214,10 @@ def main():
             # Process
             processed_audio = AudioProcessor.process_audio(
                 audio_data,
-                sample_rate
+                sample_rate,
+                pitch_steps=0.1,
+                noise_level=0.0005,
+                stretch_rate=1.01
             )
             
             # Output
