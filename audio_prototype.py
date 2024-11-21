@@ -299,3 +299,21 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # providing a training voice cloning model (Darell S.)
+
+    pip install TTS # installing Coquoi TTS
+
+    ffmpeg -i input.mp3 -ac 1 -ar 22050 output.wav # could be subject to change
+    from TTS.tts.trainer import trainer
+    # configurations defined
+    config_path = "config_path.json" # path could be changed/modified
+    trainer = Trainer(config_path)
+    #begin training
+    trainer.fit()
+
+    #evaluation
+    from TTS.tts.utils.synthesizer import Synthesizer
+
+    synthesizer = Synthesizer(model_path= "trained_model_path.pth")
+    synthesizer.tts_to_file("Example", file_path= "output_file_path.wav") # subject to change
