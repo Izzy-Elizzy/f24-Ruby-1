@@ -40,7 +40,7 @@ def update_metadata(input_folder, output_folder):
             print(f"File {i}.wav not found.")
 
 if __name__ == "__main__":
-    input_folder = "./voice_cloner/audio_samples"  # Folder with the wav files
-    output_folder = "./voice_cloner/final_wav"     # Where you want the final files
+    input_folder = "./voice_cloner/audio_samples" 
+    output_folder = "./voice_cloner/final_wav"    
     update_metadata(input_folder, output_folder)
     print("Metadata update completed!")
