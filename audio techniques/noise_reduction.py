@@ -1,6 +1,6 @@
-    #noise_reduction.py 
-    import librosa
-    import numpy as np
+#noise_reduction.py 
+import librosa
+import numpy as np
  
 def apply_noise_reduction(audio_data, sample_rate, n_fft=2048, hop_length=512):
     """Applies noise reduction using spectral subtraction."""
