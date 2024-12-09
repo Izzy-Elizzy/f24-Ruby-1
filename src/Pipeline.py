@@ -153,8 +153,8 @@ def your_audio_manipulation(audio_data: np.ndarray, sample_rate: int) -> np.ndar
     return audio_data + noise
 
 def main():
-    input_folder = './voice_cloner/audio_samples'  # Replace with your input folder
-    output_folder = './voice_cloner/output' # Replace with your output folder
+    input_folder = './src/audio_samples'  # Replace with your input folder
+    output_folder = './src/output' # Replace with your output folder
 
     pipeline = AudioManipulationPipeline(input_folder, output_folder)
     results = pipeline.run_pipeline(your_audio_manipulation)
